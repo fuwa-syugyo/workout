@@ -3,6 +3,14 @@ import { Plus, Save, Trash2, CheckCircle, X, Trophy, ExternalLink, FileText, Pen
 import { BODY_PARTS, getExercises, addWorkoutLog, updateWorkoutLog, addExercise, updateExercise, deleteExercise, getPersonalBest, getLogsByDate } from '../db';
 import { format } from 'date-fns';
 
+// Fallback for crypto.randomUUID() in insecure contexts
+const uuid = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 export default function LogView({ onGoToHistory, editingLog, onClearEditing, targetDate }) {
   const [activePart, setActivePart] = useState(BODY_PARTS[0]);
   const [exercises, setExercises] = useState([]);
@@ -42,7 +50,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       setSets(editingLog.sets.map(s => ({
         ...s,
         note: s.note || '',
-        id: crypto.randomUUID()
+        id: uuid()
       })));
     }
   }, [editingLog]);
@@ -92,7 +100,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
         setSets(existingLog.sets.map(s => ({
           ...s,
           note: s.note || '',
-          id: crypto.randomUUID()
+          id: uuid()
         })));
       } else {
         setAutoEditingLog(null);
