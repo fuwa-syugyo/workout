@@ -3,6 +3,14 @@ import { Plus, Save, Trash2, CheckCircle, X, Trophy, ExternalLink, FileText, Pen
 import { BODY_PARTS, getExercises, addWorkoutLog, updateWorkoutLog, addExercise, updateExercise, deleteExercise, getPersonalBest, getLogsByDate } from '../db';
 import { format } from 'date-fns';
 
+// Fallback for crypto.randomUUID() in insecure contexts
+const uuid = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 export default function LogView({ onGoToHistory, editingLog, onClearEditing, targetDate }) {
   const [activePart, setActivePart] = useState(BODY_PARTS[0]);
   const [exercises, setExercises] = useState([]);
@@ -42,7 +50,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       setSets(editingLog.sets.map(s => ({
         ...s,
         note: s.note || '',
-        id: crypto.randomUUID()
+        id: uuid()
       })));
     }
   }, [editingLog]);
@@ -76,7 +84,8 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
   };
 
   const handleSelectExercise = (exId) => {
-    const ex = exercises.find(x => x.id === exId);
+    const all = getExercises();
+    const ex = all.find(x => x.id === exId);
     setSelectedExercise(ex);
 
     if (ex) {
@@ -92,7 +101,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
         setSets(existingLog.sets.map(s => ({
           ...s,
           note: s.note || '',
-          id: crypto.randomUUID()
+          id: uuid()
         })));
       } else {
         setAutoEditingLog(null);
@@ -215,11 +224,14 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
 
   const handleSaveExercise = () => {
     if (!newExName) return;
+    let newExId = null;
 
     if (exerciseModalMode === 'create') {
-      addExercise(newExName, activePart);
+      const newEx = addExercise(newExName, activePart);
+      newExId = newEx.id;
     } else {
       updateExercise(editingExId, newExName, activePart);
+      newExId = editingExId;
       // If we are currently editing the selected exercise, update its name in state
       if (selectedExercise && selectedExercise.id === editingExId) {
         setSelectedExercise({ ...selectedExercise, name: newExName });
@@ -228,6 +240,12 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
 
     refreshExercises();
     setShowAddExModal(false);
+
+    // Auto-select the newly created/edited exercise
+    if (newExId) {
+      handleSelectExercise(newExId);
+    }
+
     setNewExName('');
     setEditingExId(null);
   };
@@ -263,7 +281,12 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
           <button
             key={part}
             className={`chip ${activePart === part ? 'active' : ''}`}
-            onClick={() => setActivePart(part)}
+            onClick={() => {
+              setSelectedExercise(null);
+              setAutoEditingLog(null);
+              setActivePart(part);
+              setIsDropdownOpen(true);
+            }}
           >
             {part}
           </button>
@@ -273,11 +296,8 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       <div style={{ height: '20px' }}></div>
 
       {/* Exercise Selector */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
+      <div style={{ marginBottom: '8px' }}>
         <label className="label" style={{ marginBottom: 0 }}>種目を選択</label>
-        <button onClick={openCreateExerciseModal} style={{ fontSize: '12px', color: 'var(--accent)', background: 'none' }}>
-          + 種目追加
-        </button>
       </div>
 
       <div className="card" style={{ padding: '10px', display: 'flex', gap: '8px', alignItems: 'center', overflow: 'visible' }}>
@@ -330,6 +350,22 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
                     </div>
                   ))
                 )}
+                <div
+                  onClick={() => {
+                    openCreateExerciseModal();
+                    setIsDropdownOpen(false);
+                  }}
+                  style={{
+                    padding: '12px',
+                    cursor: 'pointer',
+                    color: 'var(--accent)',
+                    fontWeight: '600',
+                    borderTop: '1px solid var(--border)',
+                    textAlign: 'center'
+                  }}
+                >
+                  + 新しい種目を追加
+                </div>
               </div>
             </>
           )}

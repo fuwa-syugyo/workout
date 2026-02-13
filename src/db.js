@@ -1,3 +1,11 @@
+// Fallback for crypto.randomUUID() in insecure contexts (non-HTTPS/IP access)
+const uuid = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 export const BODY_PARTS = ['胸', '背中', '脚', '肩', '腕', '腹筋', '有酸素', 'その他'];
 
 const DEFAULT_EXERCISES = [
@@ -32,7 +40,7 @@ export const saveStore = (data) => {
 export const addWorkoutLog = (dateStr, exerciseId, sets, note = '') => {
   const store = getStore();
   const newLog = {
-    id: crypto.randomUUID(),
+    id: uuid(),
     date: dateStr,
     exerciseId,
     sets,
@@ -68,7 +76,7 @@ export const getExercises = () => {
 
 export const addExercise = (name, part) => {
   const store = getStore();
-  const newEx = { id: crypto.randomUUID(), name, part };
+  const newEx = { id: uuid(), name, part };
   store.exercises.push(newEx);
   saveStore(store);
   return newEx;
