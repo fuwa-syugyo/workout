@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, CheckCircle, X, Trophy, ExternalLink, FileText, Pencil, ChevronDown } from 'lucide-react';
 import { BODY_PARTS, getExercises, addWorkoutLog, updateWorkoutLog, addExercise, updateExercise, deleteExercise, getPersonalBest, getLogsByDate } from '../db';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 // Fallback for crypto.randomUUID() in insecure contexts
 const uuid = () => {
@@ -255,9 +255,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       <div className="header">
         <h1 className="title">{(editingLog || autoEditingLog) ? '記録の編集' : '記録'}</h1>
         <div className="date">
-          {editingLog
-            ? editingLog.date
-            : (targetDate ? format(targetDate, 'yyyy-MM-dd') : format(new Date(), 'MMM d, yyyy'))}
+          {format(editingLog ? parseISO(editingLog.date) : (targetDate || new Date()), 'yyyy-M-d')}
         </div>
       </div>
 
@@ -441,7 +439,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
                   style={{ fontSize: '12px', padding: '8px', background: 'var(--bg-app)' }}
                   value={s.note}
                   onChange={e => handleSetChange(s.id, 'note', e.target.value)}
-                  placeholder="メモ (任意)"
+                  placeholder="メモ"
                 />
               </div>
             ))}

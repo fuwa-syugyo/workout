@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Trophy, ArrowLeft, FileText } from 'lucide-react';
 import { getExercises, getHistory, getPersonalBest, BODY_PARTS } from '../db';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 export default function HistoryView({ initialExerciseId }) {
   const [view, setView] = useState('list'); // 'list' or 'detail'
@@ -53,7 +53,7 @@ export default function HistoryView({ initialExerciseId }) {
             <div style={{ fontSize: '24px', fontWeight: '700' }}>
               {pb.weight}kg x {pb.reps}
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{pb.date}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{format(parseISO(pb.date), 'yyyy-M-d')}</div>
           </div>
         )}
 
@@ -64,7 +64,7 @@ export default function HistoryView({ initialExerciseId }) {
           ) : (
             history.map(log => (
               <div key={log.id} style={{ borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{log.date}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>{format(parseISO(log.date), 'yyyy-M-d')}</div>
                 {log.sets.map((s, i) => (
                   <div key={i} style={{ marginBottom: '6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
