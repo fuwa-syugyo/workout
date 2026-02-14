@@ -34,7 +34,7 @@ export default function CalendarView({ onEditLog, onAddLog }) {
         <h1 className="title">カレンダー</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} style={{ background: 'none', color: 'white' }}><ChevronLeft /></button>
-          <span style={{ fontWeight: '600' }}>{format(currentMonth, 'MMMM yyyy')}</span>
+          <span style={{ fontWeight: '600' }}>{format(currentMonth, 'yyyy年M月')}</span>
           <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} style={{ background: 'none', color: 'white' }}><ChevronRight /></button>
         </div>
       </div>
@@ -74,7 +74,7 @@ export default function CalendarView({ onEditLog, onAddLog }) {
             padding: '20px', maxHeight: '70vh', overflowY: 'auto', margin: 'auto'
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '20px' }}>{format(selectedDate, 'MMMM d, yyyy')}</h2>
+              <h2 style={{ fontSize: '20px' }}>{format(selectedDate, 'yyyy-M-d')}</h2>
               <button onClick={() => setSelectedDate(null)} style={{ background: 'none', color: 'white' }}><X /></button>
             </div>
 
