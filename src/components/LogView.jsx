@@ -441,7 +441,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
                   style={{ fontSize: '12px', padding: '8px', background: 'var(--bg-app)' }}
                   value={s.note}
                   onChange={e => handleSetChange(s.id, 'note', e.target.value)}
-                  placeholder="メモ (任意)"
+                  placeholder="メモ"
                 />
               </div>
             ))}
