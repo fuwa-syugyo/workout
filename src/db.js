@@ -108,7 +108,7 @@ export const getPersonalBest = (exerciseId) => {
   logs.forEach(log => {
     log.sets.forEach(set => {
       const vol = set.weight * set.reps;
-      if (vol > maxVol) {
+      if (bestSet === null || vol > maxVol || (vol === maxVol && set.reps > bestSet.reps)) {
         maxVol = vol;
         bestSet = { weight: set.weight, reps: set.reps, date: log.date };
       }

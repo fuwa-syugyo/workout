@@ -139,15 +139,25 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
     if (!selectedExercise) return;
 
     // Filter out empty sets
+    // 空白でないことを厳密にチェック（0は有効な入力として扱う）
     const validSets = sets
-      .filter(s => s.weight && s.reps)
+      .filter(s => {
+        const w = s.weight !== null && s.weight !== undefined && String(s.weight).trim() !== '';
+        const r = s.reps !== null && s.reps !== undefined && String(s.reps).trim() !== '';
+        return w && r;
+      })
       .map(s => ({
         weight: parseFloat(s.weight),
-        reps: parseInt(s.reps),
+        reps: parseInt(s.reps, 10),
         note: s.note || ''
-      }));
+      }))
+      .filter(s => !isNaN(s.weight) && !isNaN(s.reps));
 
-    if (validSets.length === 0) return;
+    if (validSets.length === 0) {
+      setSuccessMsg('重量と回数を入力してください');
+      setTimeout(() => setSuccessMsg(''), 2000);
+      return;
+    }
 
     const activeEditingLog = editingLog || autoEditingLog;
 
@@ -251,261 +261,263 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
   };
 
   return (
-    <div className="page fade-in">
-      <div className="header">
-        <h1 className="title">{(editingLog || autoEditingLog) ? '記録の編集' : '記録'}</h1>
-        <div className="date">
-          {format(editingLog ? parseISO(editingLog.date) : (targetDate || new Date()), 'yyyy-M-d')}
-        </div>
-      </div>
-
+    <>
       {successMsg && (
-        <div className="card" style={{ borderColor: 'var(--success)', color: 'var(--success)', display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <CheckCircle size={20} /> {successMsg}
+        <div className="toast">
+          <CheckCircle size={20} color="var(--success)" /> {successMsg}
         </div>
       )}
 
-      {(editingLog || targetDate) && (
-        <div style={{ marginBottom: '10px' }}>
-          <button onClick={cancelEdit} style={{ color: 'var(--text-secondary)', background: 'none', textDecoration: 'underline' }}>
-            {targetDate ? 'カレンダーに戻る' : 'キャンセルして新規作成へ戻る'}
-          </button>
+      <div className="page fade-in">
+        <div className="header">
+          <h1 className="title">{(editingLog || autoEditingLog) ? '記録の編集' : '記録'}</h1>
+          <div className="date">
+            {format(editingLog ? parseISO(editingLog.date) : (targetDate || new Date()), 'yyyy-M-d')}
+          </div>
         </div>
-      )}
 
-      {/* Part Selector */}
-      <div className="part-selector">
-        {BODY_PARTS.map(part => (
-          <button
-            key={part}
-            className={`chip ${activePart === part ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedExercise(null);
-              setAutoEditingLog(null);
-              setActivePart(part);
-              setIsDropdownOpen(true);
-            }}
-          >
-            {part}
-          </button>
-        ))}
-      </div>
+        {(editingLog || targetDate) && (
+          <div style={{ marginBottom: '10px' }}>
+            <button onClick={cancelEdit} style={{ color: 'var(--text-secondary)', background: 'none', textDecoration: 'underline' }}>
+              {targetDate ? 'カレンダーに戻る' : 'キャンセルして新規作成へ戻る'}
+            </button>
+          </div>
+        )}
 
-      <div style={{ height: '20px' }}></div>
+        {/* Part Selector */}
+        <div className="part-selector">
+          {BODY_PARTS.map(part => (
+            <button
+              key={part}
+              className={`chip ${activePart === part ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedExercise(null);
+                setAutoEditingLog(null);
+                setActivePart(part);
+                setIsDropdownOpen(true);
+              }}
+            >
+              {part}
+            </button>
+          ))}
+        </div>
 
-      {/* Exercise Selector */}
-      <div style={{ marginBottom: '8px' }}>
-        <label className="label" style={{ marginBottom: 0 }}>種目を選択</label>
-      </div>
+        <div style={{ height: '20px' }}></div>
 
-      <div className="card" style={{ padding: '10px', display: 'flex', gap: '8px', alignItems: 'center', overflow: 'visible' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <div
-            className="input"
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-          >
-            <span style={{ color: selectedExercise ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-              {selectedExercise?.name || '種目を選択...'}
-            </span>
-            <ChevronDown size={16} color="var(--text-secondary)" />
+        {/* Exercise Selector */}
+        <div style={{ marginBottom: '8px' }}>
+          <label className="label" style={{ marginBottom: 0 }}>種目を選択</label>
+        </div>
+
+        <div className="card" style={{ padding: '10px', display: 'flex', gap: '8px', alignItems: 'center', overflow: 'visible' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <div
+              className="input"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            >
+              <span style={{ color: selectedExercise ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                {selectedExercise?.name || '種目を選択...'}
+              </span>
+              <ChevronDown size={16} color="var(--text-secondary)" />
+            </div>
+
+            {isDropdownOpen && (
+              <>
+                {/* Overlay to close dropdown when clicking outside */}
+                <div
+                  style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99 }}
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                <div style={{
+                  position: 'absolute', top: '110%', left: 0, width: '100%',
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderRadius: '12px', zIndex: 100,
+                  maxHeight: '250px', overflowY: 'auto', boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                }}>
+                  {exercises.length === 0 ? (
+                    <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                      種目がありません
+                    </div>
+                  ) : (
+                    exercises.map(ex => (
+                      <div
+                        key={ex.id}
+                        onClick={() => {
+                          handleSelectExercise(ex.id);
+                          setIsDropdownOpen(false);
+                        }}
+                        style={{
+                          padding: '12px',
+                          borderBottom: '1px solid var(--border)',
+                          cursor: 'pointer',
+                          color: selectedExercise?.id === ex.id ? 'var(--accent)' : 'var(--text-primary)',
+                          background: selectedExercise?.id === ex.id ? 'var(--bg-element)' : 'transparent'
+                        }}
+                      >
+                        {ex.name}
+                      </div>
+                    ))
+                  )}
+                  <div
+                    onClick={() => {
+                      openCreateExerciseModal();
+                      setIsDropdownOpen(false);
+                    }}
+                    style={{
+                      padding: '12px',
+                      cursor: 'pointer',
+                      color: 'var(--accent)',
+                      fontWeight: '600',
+                      borderTop: '1px solid var(--border)',
+                      textAlign: 'center'
+                    }}
+                  >
+                    + 新しい種目を追加
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          {isDropdownOpen && (
-            <>
-              {/* Overlay to close dropdown when clicking outside */}
-              <div
-                style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99 }}
-                onClick={() => setIsDropdownOpen(false)}
-              />
-              <div style={{
-                position: 'absolute', top: '110%', left: 0, width: '100%',
-                background: 'var(--bg-card)', border: '1px solid var(--border)',
-                borderRadius: '12px', zIndex: 100,
-                maxHeight: '250px', overflowY: 'auto', boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-              }}>
-                {exercises.length === 0 ? (
-                  <div style={{ padding: '12px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                    種目がありません
-                  </div>
-                ) : (
-                  exercises.map(ex => (
-                    <div
-                      key={ex.id}
-                      onClick={() => {
-                        handleSelectExercise(ex.id);
-                        setIsDropdownOpen(false);
-                      }}
-                      style={{
-                        padding: '12px',
-                        borderBottom: '1px solid var(--border)',
-                        cursor: 'pointer',
-                        color: selectedExercise?.id === ex.id ? 'var(--accent)' : 'var(--text-primary)',
-                        background: selectedExercise?.id === ex.id ? 'var(--bg-element)' : 'transparent'
-                      }}
-                    >
-                      {ex.name}
-                    </div>
-                  ))
-                )}
-                <div
-                  onClick={() => {
-                    openCreateExerciseModal();
-                    setIsDropdownOpen(false);
-                  }}
-                  style={{
-                    padding: '12px',
-                    cursor: 'pointer',
-                    color: 'var(--accent)',
-                    fontWeight: '600',
-                    borderTop: '1px solid var(--border)',
-                    textAlign: 'center'
-                  }}
-                >
-                  + 新しい種目を追加
-                </div>
-              </div>
-            </>
+          {selectedExercise && (
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button onClick={openEditExerciseModal} style={{ padding: '8px', color: 'var(--text-secondary)', background: 'var(--bg-element)', borderRadius: '8px' }}>
+                <Pencil size={16} />
+              </button>
+              <button onClick={handleDeleteExercise} style={{ padding: '8px', color: 'var(--danger)', background: 'var(--bg-element)', borderRadius: '8px' }}>
+                <Trash2 size={16} />
+              </button>
+            </div>
           )}
         </div>
 
         {selectedExercise && (
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button onClick={openEditExerciseModal} style={{ padding: '8px', color: 'var(--text-secondary)', background: 'var(--bg-element)', borderRadius: '8px' }}>
-              <Pencil size={16} />
-            </button>
-            <button onClick={handleDeleteExercise} style={{ padding: '8px', color: 'var(--danger)', background: 'var(--bg-element)', borderRadius: '8px' }}>
-              <Trash2 size={16} />
-            </button>
+          <div className="fade-in">
+            {/* Stats Bar */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+              <div className="card" style={{ flex: 1, marginBottom: 0, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80px', background: 'var(--bg-card)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Trophy size={14} color="var(--accent)" /> 自己ベスト
+                </div>
+                {currentPb ? (
+                  <div style={{ fontWeight: '700', fontSize: '18px' }}>{currentPb.weight}kg x {currentPb.reps}</div>
+                ) : (
+                  <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>--</div>
+                )}
+              </div>
+
+              <button
+                className="card"
+                onClick={() => onGoToHistory && onGoToHistory(selectedExercise.id)}
+                style={{ flex: 1, marginBottom: 0, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80px', background: 'var(--bg-element)', border: '1px solid var(--border)' }}
+              >
+                <ExternalLink size={20} style={{ marginBottom: '4px' }} />
+                <span style={{ fontSize: '12px', fontWeight: '500' }}>過去の履歴を見る</span>
+              </button>
+            </div>
+
+            <div className="card" style={{ padding: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 40px', gap: '10px', marginBottom: '10px', paddingLeft: '4px' }}>
+                <div className="label" style={{ marginBottom: 0 }}>Weight (kg)</div>
+                <div className="label" style={{ marginBottom: 0 }}>Reps</div>
+                <div></div>
+              </div>
+
+              {sets.map((s, i) => (
+                <div key={s.id} style={{ marginBottom: '16px', borderBottom: i !== sets.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 40px', gap: '10px', marginBottom: '8px' }}>
+                    <input
+                      type="number"
+                      className="input"
+                      value={s.weight}
+                      onChange={e => handleSetChange(s.id, 'weight', e.target.value)}
+                      placeholder="0"
+                    />
+                    <input
+                      type="number"
+                      className="input"
+                      value={s.reps}
+                      onChange={e => handleSetChange(s.id, 'reps', e.target.value)}
+                      placeholder="0"
+                    />
+                    <button onClick={() => removeSetRow(i)} style={{ color: 'var(--danger)', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                  <input
+                    className="input"
+                    style={{ fontSize: '12px', padding: '8px', background: 'var(--bg-app)' }}
+                    value={s.note}
+                    onChange={e => handleSetChange(s.id, 'note', e.target.value)}
+                    placeholder="メモ"
+                  />
+                </div>
+              ))}
+
+              <button className="btn btn-secondary" onClick={addSetRow} style={{ marginTop: '0px' }}>
+                <Plus size={18} /> セットを追加
+              </button>
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
+              <button className="btn" onClick={saveWorkout}>
+                <Save size={18} /> {editingLog ? '更新する' : '保存する'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Add/Edit Exercise Modal */}
+        {showAddExModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }} onClick={() => setShowAddExModal(false)}>
+            <div style={{
+              background: 'var(--bg-card)', width: '90%', maxWidth: '400px',
+              borderRadius: '16px', padding: '20px'
+            }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <h3>{exerciseModalMode === 'create' ? `種目を追加 (${activePart})` : '種目を編集'}</h3>
+                <button onClick={() => setShowAddExModal(false)} style={{ background: 'none', color: 'white' }}><X /></button>
+              </div>
+              <input
+                className="input"
+                value={newExName}
+                onChange={e => setNewExName(e.target.value)}
+                placeholder="種目名を入力..."
+                autoFocus
+              />
+              <button className="btn" style={{ marginTop: '20px' }} onClick={handleSaveExercise}>
+                {exerciseModalMode === 'create' ? '追加' : '更新'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            background: 'rgba(0,0,0,0.8)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }} onClick={() => setShowDeleteModal(false)}>
+            <div style={{
+              background: 'var(--bg-card)', width: '90%', maxWidth: '320px',
+              borderRadius: '16px', padding: '20px'
+            }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ marginBottom: '10px' }}>種目を削除しますか？</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '14px' }}>
+                「{selectedExercise?.name}」と、これまでの全ての記録が削除されます。この操作は取り消せません。
+              </p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>キャンセル</button>
+                <button className="btn" style={{ background: 'var(--danger)', color: 'white' }} onClick={confirmDelete}>削除する</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {selectedExercise && (
-        <div className="fade-in">
-          {/* Stats Bar */}
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-            <div className="card" style={{ flex: 1, marginBottom: 0, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '80px', background: 'var(--bg-card)' }}>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Trophy size={14} color="var(--accent)" /> 自己ベスト
-              </div>
-              {currentPb ? (
-                <div style={{ fontWeight: '700', fontSize: '18px' }}>{currentPb.weight}kg x {currentPb.reps}</div>
-              ) : (
-                <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>--</div>
-              )}
-            </div>
-
-            <button
-              className="card"
-              onClick={() => onGoToHistory && onGoToHistory(selectedExercise.id)}
-              style={{ flex: 1, marginBottom: 0, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80px', background: 'var(--bg-element)', border: '1px solid var(--border)' }}
-            >
-              <ExternalLink size={20} style={{ marginBottom: '4px' }} />
-              <span style={{ fontSize: '12px', fontWeight: '500' }}>過去の履歴を見る</span>
-            </button>
-          </div>
-
-          <div className="card" style={{ padding: '10px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 40px', gap: '10px', marginBottom: '10px', paddingLeft: '4px' }}>
-              <div className="label" style={{ marginBottom: 0 }}>Weight (kg)</div>
-              <div className="label" style={{ marginBottom: 0 }}>Reps</div>
-              <div></div>
-            </div>
-
-            {sets.map((s, i) => (
-              <div key={s.id} style={{ marginBottom: '16px', borderBottom: i !== sets.length - 1 ? '1px dashed var(--border)' : 'none', paddingBottom: '16px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 40px', gap: '10px', marginBottom: '8px' }}>
-                  <input
-                    type="number"
-                    className="input"
-                    value={s.weight}
-                    onChange={e => handleSetChange(s.id, 'weight', e.target.value)}
-                    placeholder="0"
-                  />
-                  <input
-                    type="number"
-                    className="input"
-                    value={s.reps}
-                    onChange={e => handleSetChange(s.id, 'reps', e.target.value)}
-                    placeholder="0"
-                  />
-                  <button onClick={() => removeSetRow(i)} style={{ color: 'var(--danger)', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-                <input
-                  className="input"
-                  style={{ fontSize: '12px', padding: '8px', background: 'var(--bg-app)' }}
-                  value={s.note}
-                  onChange={e => handleSetChange(s.id, 'note', e.target.value)}
-                  placeholder="メモ"
-                />
-              </div>
-            ))}
-
-            <button className="btn btn-secondary" onClick={addSetRow} style={{ marginTop: '0px' }}>
-              <Plus size={18} /> セットを追加
-            </button>
-          </div>
-
-          <div style={{ marginTop: '20px' }}>
-            <button className="btn" onClick={saveWorkout}>
-              <Save size={18} /> {editingLog ? '更新する' : '保存する'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Exercise Modal */}
-      {showAddExModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }} onClick={() => setShowAddExModal(false)}>
-          <div style={{
-            background: 'var(--bg-card)', width: '90%', maxWidth: '400px',
-            borderRadius: '16px', padding: '20px'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3>{exerciseModalMode === 'create' ? `種目を追加 (${activePart})` : '種目を編集'}</h3>
-              <button onClick={() => setShowAddExModal(false)} style={{ background: 'none', color: 'white' }}><X /></button>
-            </div>
-            <input
-              className="input"
-              value={newExName}
-              onChange={e => setNewExName(e.target.value)}
-              placeholder="種目名を入力..."
-              autoFocus
-            />
-            <button className="btn" style={{ marginTop: '20px' }} onClick={handleSaveExercise}>
-              {exerciseModalMode === 'create' ? '追加' : '更新'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.8)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }} onClick={() => setShowDeleteModal(false)}>
-          <div style={{
-            background: 'var(--bg-card)', width: '90%', maxWidth: '320px',
-            borderRadius: '16px', padding: '20px'
-          }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ marginBottom: '10px' }}>種目を削除しますか？</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '14px' }}>
-              「{selectedExercise?.name}」と、これまでの全ての記録が削除されます。この操作は取り消せません。
-            </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>キャンセル</button>
-              <button className="btn" style={{ background: 'var(--danger)', color: 'white' }} onClick={confirmDelete}>削除する</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
