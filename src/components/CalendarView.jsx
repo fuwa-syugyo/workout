@@ -66,21 +66,27 @@ export default function CalendarView({ onEditLog, onAddLog }) {
       {selectedDate && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.8)', zIndex: 200, display: 'flex', justifyContent: 'center', overflow: 'auto', padding: '20px 0'
+          background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', justifyContent: 'center',
+          alignItems: 'flex-start', padding: '20px 0 var(--nav-height)'
         }} onClick={() => setSelectedDate(null)}>
           <div style={{
-            background: 'var(--bg-card)', width: '90%', maxWidth: '400px',
-            borderRadius: '20px',
-            padding: '20px', maxHeight: '70vh', overflowY: 'auto', margin: 'auto'
+            background: 'var(--bg-card)', width: '92%', maxWidth: '450px',
+            borderRadius: '24px',
+            padding: '24px',
+            height: 'calc(100vh - var(--nav-height) - 40px)',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 10px 50px rgba(0,0,0,0.5)',
+            position: 'relative',
+            marginTop: '10px'
           }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '20px' }}>{format(selectedDate, 'yyyy-M-d')}</h2>
-              <button onClick={() => setSelectedDate(null)} style={{ background: 'none', color: 'white' }}><X /></button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '700' }}>{format(selectedDate, 'yyyy-M-d')}</h2>
+              <button onClick={() => setSelectedDate(null)} style={{ background: 'var(--bg-element)', color: 'white', padding: '8px', borderRadius: '50%', display: 'flex' }}><X size={20} /></button>
             </div>
 
-            <div style={{ maxHeight: 'calc(70vh - 120px)', overflowY: 'auto', marginBottom: '20px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px', paddingRight: '4px' }}>
               {getDayLogs(selectedDate).length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0' }}>
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px 0' }}>
                   記録はありません
                 </div>
               ) : (
