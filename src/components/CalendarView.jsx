@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Plus } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths, parseISO } from 'date-fns';
-import { getAllLogs, getExercises } from '../db';
+import { getAllLogs, getExercises, formatSet } from '../db';
 
-export default function CalendarView({ onEditLog, onAddLog }) {
+export default function CalendarView({ onEditLog, onAddLog, isActive }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [logs, setLogs] = useState([]);
   const [exercises, setExercises] = useState([]);
@@ -12,7 +12,7 @@ export default function CalendarView({ onEditLog, onAddLog }) {
   useEffect(() => {
     setLogs(getAllLogs());
     setExercises(getExercises());
-  }, []);
+  }, [isActive]);
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -106,7 +106,7 @@ export default function CalendarView({ onEditLog, onAddLog }) {
                         <div key={i} style={{ marginBottom: '4px' }}>
                           <div style={{ fontSize: '14px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
                             <span>セット {i + 1}</span>
-                            <span style={{ color: 'white' }}>{s.weight}kg x {s.reps}</span>
+                            <span style={{ color: 'white' }}>{formatSet(s.weight, s.reps)}</span>
                           </div>
                           {s.note && (
                             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '8px', paddingLeft: '8px', borderLeft: '2px solid var(--border)', marginTop: '2px' }}>

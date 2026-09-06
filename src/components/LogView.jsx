@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, CheckCircle, X, Trophy, ExternalLink, FileText, Pencil, ChevronDown } from 'lucide-react';
-import { BODY_PARTS, getExercises, addWorkoutLog, updateWorkoutLog, addExercise, updateExercise, deleteExercise, getPersonalBest, getLogsByDate } from '../db';
+import { BODY_PARTS, getExercises, addWorkoutLog, updateWorkoutLog, addExercise, updateExercise, deleteExercise, getPersonalBest, getLogsByDate, formatSet } from '../db';
 import { format, parseISO } from 'date-fns';
 
 // Fallback for crypto.randomUUID() in insecure contexts
@@ -9,6 +9,42 @@ const uuid = () => {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
+const DRAFT_STORAGE_KEY = 'gym_tracker_draft_v1';
+
+const saveDraft = (data) => {
+  try {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+      ...data,
+      timestamp: Date.now()
+    }));
+  } catch (e) {
+    // ignore
+  }
+};
+
+const getDraft = () => {
+  try {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed.timestamp || Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+};
+
+const clearDraft = () => {
+  try {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch (e) {
+    // ignore
+  }
 };
 
 export default function LogView({ onGoToHistory, editingLog, onClearEditing, targetDate }) {
@@ -34,52 +70,88 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
   // Auto-edit mode (when selecting an exercise that has a log for "today")
   const [autoEditingLog, setAutoEditingLog] = useState(null);
 
+  // Restore draft on initial mount if not editing a specific past log
+  useEffect(() => {
+    if (editingLog) return;
+    const draft = getDraft();
+    if (draft && draft.selectedExerciseId) {
+      const all = getExercises();
+      const ex = all.find(e => e.id === draft.selectedExerciseId);
+      if (ex) {
+        if (draft.activePart) setActivePart(draft.activePart);
+        setSelectedExercise(ex);
+        if (Array.isArray(draft.sets) && draft.sets.length > 0) {
+          setSets(draft.sets);
+        }
+        setCurrentPb(getPersonalBest(ex.id));
+
+        const dateToMatch = draft.targetDate
+          ? format(parseISO(draft.targetDate), 'yyyy-MM-dd')
+          : format(new Date(), 'yyyy-MM-dd');
+        const todaysLogs = getLogsByDate(dateToMatch);
+        const existingLog = todaysLogs.find(l => l.exerciseId === ex.id);
+        if (existingLog) {
+          setAutoEditingLog(existingLog);
+        }
+      }
+    }
+  }, []);
+
+  // Save draft whenever inputs change
+  useEffect(() => {
+    if (editingLog) return;
+    if (!selectedExercise) return;
+
+    const hasData = sets.some(s =>
+      (s.weight !== null && s.weight !== undefined && String(s.weight).trim() !== '') ||
+      (s.reps !== null && s.reps !== undefined && String(s.reps).trim() !== '') ||
+      (s.note && s.note.trim() !== '')
+    );
+
+    if (hasData || sets.length > 1) {
+      saveDraft({
+        activePart,
+        selectedExerciseId: selectedExercise.id,
+        sets,
+        targetDate: targetDate ? targetDate.toISOString() : null
+      });
+    }
+  }, [selectedExercise, sets, activePart, targetDate, editingLog]);
+
   useEffect(() => {
     refreshExercises();
   }, [activePart]);
 
-  // Handle editing mode (log editing)
+  // Handle editing mode (log editing from calendar)
   useEffect(() => {
     if (editingLog) {
       const all = getExercises();
       const ex = all.find(e => e.id === editingLog.exerciseId);
       if (ex) {
         setActivePart(ex.part);
+        setSelectedExercise(ex);
+        setCurrentPb(getPersonalBest(ex.id));
       }
       // Populate sets with notes
       setSets(editingLog.sets.map(s => ({
         ...s,
+        weight: s.weight !== null && s.weight !== undefined ? s.weight : '',
         note: s.note || '',
         id: uuid()
       })));
     }
   }, [editingLog]);
 
-  // When exercises update (or activePart changes), sets selectedExercise if editing
-  useEffect(() => {
-    if (editingLog && exercises.length > 0) {
-      const ex = exercises.find(e => e.id === editingLog.exerciseId);
-      if (ex && (!selectedExercise || selectedExercise.id !== ex.id)) {
-        handleSelectExercise(ex.id);
-        // Sets are already handled in the other useEffect, but just in case
-      }
-    }
-  }, [exercises, editingLog]);
-
   const refreshExercises = () => {
     const all = getExercises();
     setExercises(all.filter(e => e.part === activePart));
-    if (!editingLog) {
-      // Don't reset everything if we are just updating the list after edit/delete
-      // But we need to check if selectedExercise still exists
-      if (selectedExercise) {
-        const exists = all.find(e => e.id === selectedExercise.id && e.part === activePart);
-        if (!exists) setSelectedExercise(null);
-      } else {
+    if (!editingLog && selectedExercise) {
+      const exists = all.find(e => e.id === selectedExercise.id);
+      if (!exists) {
         setSelectedExercise(null);
+        setSets([{ weight: '', reps: '', note: '', id: Date.now() }]);
+        clearDraft();
       }
-      // Reset sets if not editing
-      setSets([{ weight: '', reps: '', note: '', id: Date.now() }]);
     }
   };
 
@@ -100,6 +172,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
         setAutoEditingLog(existingLog);
         setSets(existingLog.sets.map(s => ({
           ...s,
+          weight: s.weight !== null && s.weight !== undefined ? s.weight : '',
           note: s.note || '',
           id: uuid()
         })));
@@ -111,6 +184,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       setCurrentPb(null);
       setAutoEditingLog(null);
       setSets([{ weight: '', reps: '', note: '', id: Date.now() }]);
+      clearDraft();
     }
   };
 
@@ -139,22 +213,32 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
     if (!selectedExercise) return;
 
     // Filter out empty sets
-    // 空白でないことを厳密にチェック（0は有効な入力として扱う）
+    // 回数が入力されているセットを対象とする（重量は空または0でも自重種目として許可）
     const validSets = sets
       .filter(s => {
-        const w = s.weight !== null && s.weight !== undefined && String(s.weight).trim() !== '';
-        const r = s.reps !== null && s.reps !== undefined && String(s.reps).trim() !== '';
-        return w && r;
+        const rValid = s.reps !== null && s.reps !== undefined && String(s.reps).trim() !== '';
+        if (!rValid) return false;
+        const repsNum = parseInt(s.reps, 10);
+        if (isNaN(repsNum) || repsNum <= 0) return false;
+
+        const hasWeight = s.weight !== null && s.weight !== undefined && String(s.weight).trim() !== '';
+        if (hasWeight) {
+          const wNum = parseFloat(s.weight);
+          if (isNaN(wNum) || wNum < 0) return false;
+        }
+        return true;
       })
-      .map(s => ({
-        weight: parseFloat(s.weight),
-        reps: parseInt(s.reps, 10),
-        note: s.note || ''
-      }))
-      .filter(s => !isNaN(s.weight) && !isNaN(s.reps));
+      .map(s => {
+        const hasWeight = s.weight !== null && s.weight !== undefined && String(s.weight).trim() !== '';
+        return {
+          weight: hasWeight ? parseFloat(s.weight) : null,
+          reps: parseInt(s.reps, 10),
+          note: s.note || ''
+        };
+      });
 
     if (validSets.length === 0) {
-      setSuccessMsg('重量と回数を入力してください');
+      setSuccessMsg('回数を入力してください');
       setTimeout(() => setSuccessMsg(''), 2000);
       return;
     }
@@ -171,6 +255,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       }
 
       setSuccessMsg('更新しました！');
+      clearDraft();
 
       // If it was an auto-edit, keep the data but show success
       if (autoEditingLog && !editingLog) {
@@ -187,11 +272,13 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
       setSuccessMsg('保存しました！');
       // After saving, it becomes the "auto editing log" for this session
       setAutoEditingLog(newLog);
+      clearDraft();
       setTimeout(() => setSuccessMsg(''), 2000);
     }
   };
 
   const cancelEdit = () => {
+    clearDraft();
     if (onClearEditing) onClearEditing();
     setSelectedExercise(null);
     setSets([{ weight: '', reps: '', note: '', id: Date.now() }]);
@@ -401,7 +488,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
                   <Trophy size={14} color="var(--accent)" /> 自己ベスト
                 </div>
                 {currentPb ? (
-                  <div style={{ fontWeight: '700', fontSize: '18px' }}>{currentPb.weight}kg x {currentPb.reps}</div>
+                  <div style={{ fontWeight: '700', fontSize: '18px' }}>{formatSet(currentPb.weight, currentPb.reps)}</div>
                 ) : (
                   <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>--</div>
                 )}
@@ -432,7 +519,7 @@ export default function LogView({ onGoToHistory, editingLog, onClearEditing, tar
                       className="input"
                       value={s.weight}
                       onChange={e => handleSetChange(s.id, 'weight', e.target.value)}
-                      placeholder="0"
+                      placeholder="自重"
                     />
                     <input
                       type="number"
