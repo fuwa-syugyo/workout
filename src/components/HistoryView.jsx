@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Trophy, ArrowLeft, FileText } from 'lucide-react';
-import { getExercises, getHistory, getPersonalBest, BODY_PARTS } from '../db';
+import { getExercises, getHistory, getPersonalBest, BODY_PARTS, formatSet } from '../db';
 import { format, parseISO } from 'date-fns';
 
-export default function HistoryView({ initialExerciseId }) {
+export default function HistoryView({ initialExerciseId, isFromLog, onBack, isActive }) {
   const [view, setView] = useState('list'); // 'list' or 'detail'
   const [exercises, setExercises] = useState([]);
   const [selectedEx, setSelectedEx] = useState(null);
@@ -19,8 +19,22 @@ export default function HistoryView({ initialExerciseId }) {
       if (ex) {
         selectExercise(ex);
       }
+    } else if (!isFromLog) {
+      setView('list');
+      setSelectedEx(null);
     }
   }, [initialExerciseId]);
+
+  useEffect(() => {
+    if (isActive) {
+      const all = getExercises();
+      setExercises(all);
+      if (selectedEx) {
+        setHistory(getHistory(selectedEx.id));
+        setPb(getPersonalBest(selectedEx.id));
+      }
+    }
+  }, [isActive]);
 
   const selectExercise = (ex) => {
     setSelectedEx(ex);
@@ -30,8 +44,12 @@ export default function HistoryView({ initialExerciseId }) {
   };
 
   const goBack = () => {
-    setView('list');
-    setSelectedEx(null);
+    if (isFromLog && onBack) {
+      onBack();
+    } else {
+      setView('list');
+      setSelectedEx(null);
+    }
   };
 
   if (view === 'detail' && selectedEx) {
@@ -51,7 +69,7 @@ export default function HistoryView({ initialExerciseId }) {
               <Trophy size={20} /> <span style={{ fontWeight: '600' }}>自己ベスト</span>
             </div>
             <div style={{ fontSize: '24px', fontWeight: '700' }}>
-              {pb.weight}kg x {pb.reps}
+              {formatSet(pb.weight, pb.reps)}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{format(parseISO(pb.date), 'yyyy-M-d')}</div>
           </div>
@@ -69,7 +87,7 @@ export default function HistoryView({ initialExerciseId }) {
                   <div key={i} style={{ marginBottom: '6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-muted)' }}>セット {i + 1}</span>
-                      <span style={{ color: 'white' }}>{s.weight}kg x {s.reps}</span>
+                      <span style={{ color: 'white' }}>{formatSet(s.weight, s.reps)}</span>
                     </div>
                     {s.note && (
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '8px', paddingLeft: '8px', borderLeft: '2px solid var(--border)', marginTop: '2px' }}>

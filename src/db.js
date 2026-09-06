@@ -8,6 +8,13 @@ const uuid = () => {
 
 export const BODY_PARTS = ['胸', '背中', '脚', '肩', '腕', '腹筋', '有酸素', 'その他'];
 
+export const formatSet = (weight, reps) => {
+  if (weight !== null && weight !== undefined && weight !== '' && Number(weight) > 0) {
+    return `${weight}kg x ${reps}`;
+  }
+  return `自重 x ${reps}`;
+};
+
 const DEFAULT_EXERCISES = [
   { id: 'bp', name: 'ベンチプレス', part: '胸' },
   { id: 'fly', name: 'ダンベルフライ', part: '胸' },
@@ -103,14 +110,28 @@ export const deleteExercise = (id) => {
 export const getPersonalBest = (exerciseId) => {
   const logs = getHistory(exerciseId);
   let maxVol = 0;
+  let maxRepsForZeroWeight = 0;
   let bestSet = null;
 
   logs.forEach(log => {
     log.sets.forEach(set => {
-      const vol = set.weight * set.reps;
-      if (bestSet === null || vol > maxVol || (vol === maxVol && set.reps > bestSet.reps)) {
+      const hasWeight = set.weight !== null && set.weight !== undefined && set.weight !== '' && !isNaN(Number(set.weight));
+      const w = hasWeight ? Number(set.weight) : 0;
+      const r = Number(set.reps) || 0;
+      const vol = w * r;
+
+      if (bestSet === null) {
+        bestSet = { weight: hasWeight && w > 0 ? set.weight : null, reps: r, date: log.date };
         maxVol = vol;
-        bestSet = { weight: set.weight, reps: set.reps, date: log.date };
+        if (w === 0) maxRepsForZeroWeight = r;
+      } else if (vol > 0 && vol > maxVol) {
+        maxVol = vol;
+        bestSet = { weight: set.weight, reps: r, date: log.date };
+      } else if (vol > 0 && vol === maxVol && r > bestSet.reps) {
+        bestSet = { weight: set.weight, reps: r, date: log.date };
+      } else if (maxVol === 0 && w === 0 && r > maxRepsForZeroWeight) {
+        maxRepsForZeroWeight = r;
+        bestSet = { weight: hasWeight && w > 0 ? set.weight : null, reps: r, date: log.date };
       }
     });
   });
